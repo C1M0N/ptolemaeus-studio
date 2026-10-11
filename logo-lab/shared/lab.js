@@ -64,6 +64,107 @@
     return out;
   }
 
+  // ---- whole-matrix features: how a subject's meaning is spread, not what each cell says ----
+
+  const TAU = Math.PI * 2;
+  // Domains placed around a circle in data.layouts.domainOrder, starting at 12 o'clock, clockwise.
+  const domainAngle = new Float32Array(16);
+  data.layouts.domainOrder.forEach((d, k) => { domainAngle[d] = (k / 16) * TAU; });
+
+  function rawFeatures(v) {
+    const e = domainSum(v);
+    let total = 0;
+    for (let d = 0; d < 16; d++) total += e[d];
+    const share = Float32Array.from(e, (x) => (total ? x / total : 0));
+    let H = 0, active = 0;
+    for (const p of share) { if (p > 0) H -= p * Math.log(p); if (p >= 0.06) active++; }
+    H /= Math.log(16);
+    // spread on the similarity grid: weighted radius of gyration, in cells
+    const cell = data.layouts.gridSimilar;
+    let sw = 0, sr = 0, sc = 0;
+    for (let i = 0; i < N; i++) if (v[i] > 0) { const c = cell[i]; sw += v[i]; sr += v[i] * Math.floor(c / 16); sc += v[i] * (c % 16); }
+    const cr = sw ? sr / sw : 7.5, cc = sw ? sc / sw : 7.5;
+    let g = 0;
+    for (let i = 0; i < N; i++) if (v[i] > 0) { const c = cell[i]; g += v[i] * ((Math.floor(c / 16) - cr) ** 2 + ((c % 16) - cc) ** 2); }
+    const gyration = sw ? Math.sqrt(g / sw) : 0;
+    // clusters: connected groups of strong cells (8-neighbourhood) on the similarity grid
+    const on = new Uint8Array(256);
+    for (let i = 0; i < N; i++) if (v[i] >= 0.45) on[cell[i]] = 1;
+    const seen = new Uint8Array(256);
+    let clusters = 0;
+    for (let s = 0; s < 256; s++) {
+      if (!on[s] || seen[s]) continue;
+      clusters++;
+      const stack = [s];
+      seen[s] = 1;
+      while (stack.length) {
+        const c = stack.pop(), r = Math.floor(c / 16), q = c % 16;
+        for (let dr = -1; dr <= 1; dr++) for (let dq = -1; dq <= 1; dq++) {
+          const rr = r + dr, qq = q + dq, n = rr * 16 + qq;
+          if (rr >= 0 && rr < 16 && qq >= 0 && qq < 16 && on[n] && !seen[n]) { seen[n] = 1; stack.push(n); }
+        }
+      }
+    }
+    // core vs rim on the concentric layout: 0 = centre ring (common attributes) .. 7 = outer ring (rare)
+    const rcell = data.layouts.gridRings;
+    let ring = 0;
+    for (let i = 0; i < N; i++) if (v[i] > 0) {
+      const c = rcell[i];
+      ring += v[i] * (Math.max(Math.abs(Math.floor(c / 16) - 7.5), Math.abs((c % 16) - 7.5)) - 0.5);
+    }
+    ring = sw ? ring / sw : 0;
+    return { share, entropy: H, active, gyration, clusters, ring, total };
+  }
+
+  // Reference distribution over the disciplines, so `spread` reads as "how diffuse compared with other fields".
+  let ref = null;
+  function reference() {
+    if (ref) return ref;
+    const rows = data.words.filter((w) => w.kind === 'discipline').map((w) => rawFeatures(toVec(w.r)));
+    const keys = ['entropy', 'active', 'gyration', 'clusters', 'ring'];
+    const stats = {};
+    for (const k of keys) {
+      const xs = rows.map((r) => r[k]);
+      const m = xs.reduce((a, b) => a + b, 0) / xs.length;
+      const sd = Math.sqrt(xs.reduce((a, b) => a + (b - m) ** 2, 0) / xs.length) || 1;
+      stats[k] = { m, sd };
+    }
+    const composite = (r) => ['entropy', 'active', 'gyration', 'clusters'].reduce((a, k) => a + (r[k] - stats[k].m) / stats[k].sd, 0) / 4;
+    const sorted = rows.map(composite).sort((a, b) => a - b);
+    ref = { stats, composite, sorted };
+    return ref;
+  }
+  // position of x within a sorted list, 0..1 (linear between neighbours)
+  function percentile(sorted, x) {
+    if (x <= sorted[0]) return 0;
+    if (x >= sorted[sorted.length - 1]) return 1;
+    let i = 0;
+    while (sorted[i + 1] < x) i++;
+    return (i + (x - sorted[i]) / (sorted[i + 1] - sorted[i])) / (sorted.length - 1);
+  }
+
+  // Whole-matrix features of a vector:
+  //   spread   0..1  compact (one region of meaning) .. diffuse (many unrelated regions), ranked against the 48 disciplines
+  //   entropy  0..1  how evenly the meaning is shared among the 16 domains
+  //   clusters       separate groups of strong attributes on the similarity grid
+  //   rim      0..1  meaning carried by common (0) or rare, specific (1) attributes
+  //   dirs           [{d, angle, share}] per domain, angle from data.layouts.domainOrder (0 = up, clockwise)
+  function features(v) {
+    const r = rawFeatures(v);
+    const R = reference();
+    const z = (k) => (r[k] - R.stats[k].m) / R.stats[k].sd;
+    return {
+      spread: r.total ? percentile(R.sorted, R.composite(r)) : 0,
+      entropy: r.entropy,
+      active: r.active,
+      gyration: r.gyration,
+      clusters: r.clusters,
+      rim: Math.max(0, Math.min(1, 0.5 + z('ring') / 4)),
+      dirs: Array.from(r.share, (share, d) => ({ d, angle: domainAngle[d], share })),
+      empty: !r.total,
+    };
+  }
+
   // Alchemy: combine two vectors. add = clamped sum, max = union, min = intersection, mean = blend.
   function combine(a, b, mode = 'add') {
     const out = new Float32Array(N);
@@ -172,7 +273,7 @@ ${list}
 
   window.LogoLab = {
     data, N, renderers, register,
-    vec, toVec, item, course, top, anyOf, axis, domainSum, combine, cosine, nearest,
+    vec, toVec, item, course, top, anyOf, axis, domainSum, features, domainAngle, combine, cosine, nearest,
     hash, rng, svg, canvas, hex,
     ratingPrompt, parseRating,
   };
