@@ -145,6 +145,8 @@ select.field { max-width: 100%; }
 .card-note li { display: grid; gap: 1px; font-size: 13px; line-height: 1.5; padding-top: 9px; border-top: 1px dashed var(--line); }
 .card-note li b { font-weight: 500; }
 .card-note li span { color: var(--muted); font-size: 12.5px; }
+.card-note.wide { grid-column: 1 / -1; }
+.card-note.wide ul { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); column-gap: 24px; }
 .empty-note { padding: 24px; border: 1px dashed var(--line); color: var(--muted); }
 
 /* featured proposal */
@@ -601,7 +603,7 @@ select.field { max-width: 100%; }
 <li><strong>编一本纹章簿</strong>：每个学科一页，写它的描述、寓意和来历。</li>
 </ol>
 <h2>7. 你最初的矩阵放在哪里</h2>
-<p>矩阵不该是输出的图像，而应该是系统的<strong>语义层</strong>：它回答"这个学科在意义空间里站在哪里"，然后由语法把这个位置翻译成从词表里挑出的语素。矩阵是 DNA，纹章是按语法长出来的身体。实验室里的"纹章语法"演示就是按这个思路做的：256 维向量 → 动机分 → 全局分配 → 纹章描述 → 两种画法。</p>
+<p>矩阵不该是输出的图像，而应该是系统的<strong>语义层</strong>：它回答"这个学科在意义空间里站在哪里"，然后由语法把这个位置翻译成从词表里挑出的语素。矩阵是 DNA，纹章是按语法长出来的身体。</p>
       </article>
     </section>
 
@@ -626,13 +628,7 @@ select.field { max-width: 100%; }
 <script src="shared/semantics.js"></script>
 <script src="shared/lab.js"></script>
 <script src="renderers/form.js"></script>
-<script src="renderers/grammar.js"></script>
-<script src="renderers/heraldry.js"></script>
-<script src="renderers/hexagram.js"></script>
-<script src="renderers/kamon.js"></script>
 <script src="renderers/matrix.js"></script>
 <script src="renderers/monogram.js"></script>
-<script src="renderers/radicals.js"></script>
-<script src="renderers/sigil.js"></script>
 <script src="shared/shell.js"></script>
 </body></html>

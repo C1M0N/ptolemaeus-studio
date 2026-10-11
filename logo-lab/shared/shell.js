@@ -565,7 +565,7 @@
         ]))),
       ]));
     }
-    grid.append(h('div', { class: 'card card-note' }, [
+    grid.append(h('div', { class: 'card card-note' + (studies.length % 3 === 0 ? ' wide' : '') }, [
       h('h3', { text: '还可以是什么' }),
       h('p', { text: '这里没做，但同样可以从同一组语义向量出发：' }),
       h('ul', null, MORE_IDEAS.map(([t, d]) => h('li', null, [h('b', { text: t }), h('span', { text: d })]))),
