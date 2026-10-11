@@ -56,9 +56,9 @@
       items.push({ word: course ? course.label : w, vec: L.vec(w) || new Float32Array(256), item, course });
     }
     if (q.get('combine')) {
-      const [a, b] = q.get('combine').split('+');
+      const [a, b] = q.get('combine').split(/[+ ]/).filter(Boolean); // '+' arrives as a space
       items.push({ word: a + ' + ' + b, vec: L.combine(L.vec(a), L.vec(b), q.get('cmode') || 'add'),
-        item: { kind: 'combo', zh: a + ' + ' + b, en: '', code: '', f: -1 }, course: null });
+        item: { kind: 'combo', zh: a + ' + ' + b, en: '', code: '', f: -1, parts: [a, b] }, course: null });
     }
     if (q.get('empty')) items.push({ word: '(空)', vec: new Float32Array(256), item: { kind: 'word', zh: '', en: '', code: '', f: -1 }, course: null });
     const sheet = document.getElementById('sheet');

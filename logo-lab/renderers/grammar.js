@@ -25,7 +25,7 @@
   const ANGLES = [0, 30, 45, 60, 90];
   const ARCS = [1, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10];
   const CH = { whole: 5.2 * U, pale: 5.0 * U, major: 4.2 * U, impaled: 3.3 * U, minor: 1.45 * U, triple: 2.6 * U };
-  const MARK = { y: 4.8 * U, r: 0.28 * U, gap: 0.36 * U, bar: 1.5 * U, barH: 0.46 * U };
+  const MARK = { y: 4.8 * U, r: 0.55 * U, gap: 0.45 * U, bar: 2.4 * U, barH: 0.8 * U };
   const HATCH = { pitch: 0.46 * U, w: 0.11 * U, halo: 0.7 * U };   // Petra Sancta tincture lines
   const BASE = 15.6 * U;            // the line of partition between the major field and the base
 
