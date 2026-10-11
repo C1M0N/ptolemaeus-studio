@@ -53,11 +53,63 @@ AXES = [
 ]
 
 
+# The compass: two designed axes that give every emblem a readable direction, after Biglan's classification
+# of academic fields (1973: hard/soft, pure/applied, life/non-life). Up = theory (pure), down = applied;
+# left = nature / quantitative (hard), right = human / interpretive (soft). The third axis, life vs non-life,
+# drives the contour (organic round vs crystalline). Weights are per attribute index.
+COMPASS = {
+    "theory": ({118: 1, 114: .5, 162: .9, 13: .9, 15: .5, 117: .4, 127: .7, 244: .6, 240: .4, 4: .6, 126: .5, 122: .5,
+                72: .5, 12: .4, 252: .4, 227: .3},
+               {192: 1, 193: .8, 195: .8, 101: .7, 207: .8, 196: .6, 182: .6, 14: .6, 197: .6, 198: .6, 206: .6, 184: .6,
+                187: .7, 177: .7, 138: .4, 220: .4, 233: .5, 111: .5, 199: .4, 99: .3}),
+    "soft": ({216: 1, 214: 1, 98: .6, 186: .7, 219: .6, 117: .5, 164: .7, 129: .5, 128: .4, 146: .4, 200: .7, 211: .6,
+              208: .6, 213: .5, 180: .4, 170: .5, 115: .4, 215: .8, 102: .4, 160: .4, 176: .4, 190: .4, 141: .4, 183: .3,
+              178: .3, 9: .3},
+             {201: 1, 223: 1, 118: .6, 240: .4, 20: .5, 26: .6, 30: .5, 22: .5, 203: .6, 193: .5, 244: .5, 18: .4, 17: .3,
+              224: .4, 227: .5, 228: .4, 230: .4, 24: .4, 59: .3, 87: .3, 245: .3}),
+    "life": ({0: 1, 90: .8, 96: .8, 97: .8, 99: .8, 98: .5, 103: .7, 110: .6, 109: .6, 231: .6, 111: .6, 177: .5, 2: .5,
+              112: .3, 115: .3, 119: .3, 28: .5, 238: .4},
+             {20: .8, 22: .7, 30: .8, 193: .8, 203: .8, 201: .6, 26: .6, 195: .6, 198: .5, 202: .5, 192: .5, 69: .5, 75: .5,
+              72: .4, 240: .4, 59: .5}),
+}
+
+
+def compass(X, domains):
+    """Word scores on each compass axis (z-scored), then attribute positions by one step of reciprocal
+    averaging (each attribute sits at the weighted mean of the words that use it) plus its own pole membership."""
+    out = {}
+    for key, (pos, neg) in COMPASS.items():
+        def pole(d):
+            idx = np.array(list(d.keys())); w = np.array(list(d.values()))
+            return (X[:, idx] * w).sum(axis=1) / w.sum()
+        raw = pole(pos) - pole(neg)
+        z = (raw - raw.mean()) / raw.std()
+        use = X.sum(axis=0)
+        attr = np.where(use > 0, (X * z[:, None]).sum(axis=0) / np.where(use > 0, use, 1), np.nan)
+        for d in range(16):  # unused attributes take their domain's mean
+            m = np.nanmean(attr[domains == d]) if np.any(~np.isnan(attr[domains == d])) else 0.0
+            attr[(domains == d) & np.isnan(attr)] = m
+        member = np.zeros(N)
+        for i, w in pos.items(): member[i] += w
+        for i, w in neg.items(): member[i] -= w
+        attr = attr + 0.9 * attr.std() * member
+        out[key] = {"words": z, "attrs": np.tanh(attr / (1.6 * attr.std()))}
+    return out
+
+
 def load():
     attrs = json.loads((ROOT / "data/attributes.json").read_text())
     ratings = json.loads((ROOT / "data/ratings.json").read_text())
     disciplines = json.loads((ROOT / "data/ratings_disciplines.json").read_text())
-    return attrs, ratings, disciplines
+    courses = json.loads((ROOT / "data/courses.json").read_text())["courses"]
+    rated = {}
+    for f in sorted((ROOT / "data").glob("ratings_courses_*.json")):
+        for w in json.loads(f.read_text())["words"]:
+            rated[w["word"].split("/")[0].strip()] = w["ratings"]
+    for c in courses:
+        rs = rated.get(f"{c['code']} {c['number']}", [])
+        c["r"] = {str(r["i"]): int(r["v"]) for r in rs if 0 <= r["i"] < N and r["v"] > 0}
+    return attrs, ratings, disciplines, courses
 
 
 def parse_ratings(*docs):
@@ -216,7 +268,7 @@ def grid_rings(P, freq, mean):
 
 
 def main():
-    attrs_doc, ratings, disciplines = load()
+    attrs_doc, ratings, disciplines, courses = load()
     attrs = attrs_doc["attrs"]
     # discipline ratings come second so they win if a name appears in both files
     words = word_vectors(parse_ratings(ratings, disciplines))
@@ -239,6 +291,13 @@ def main():
     dom_centroid = np.array([P[domains == d].mean(axis=0) for d in range(16)])
     dom_ang = np.arctan2(dom_centroid[:, 1] - c[1], dom_centroid[:, 0] - c[0])
     domain_order = [int(d) for d in np.argsort(dom_ang)]
+
+    comp = compass(X, domains)
+    disc_idx = [j for j, w in enumerate(words) if w["kind"] == "discipline"]
+    print("compass (soft→right, theory→up, life):")
+    for j in disc_idx:
+        print(f"  {words[j]['zh']:<6} x {comp['soft']['words'][j]:+.2f}  y {comp['theory']['words'][j]:+.2f}  life {comp['life']['words'][j]:+.2f}")
+    print(f"courses: {len(courses)}, rated {sum(1 for c in courses if c['r'])}")
 
     grid_domain = [a["d"] * 16 + a["k"] for a in attrs]
     grid_sim = grid_by_similarity(P, D)
@@ -271,9 +330,13 @@ def main():
             "xy": [[round(float(x), 4), round(float(y), 4)] for x, y in P],
             "angle": [round(float(a), 5) for a in angle],
             "domainOrder": domain_order,
+            # compass map: x = soft (right) vs hard (left), y = theory (up, positive) vs applied; both in [-1, 1]
+            "compass": [[round(float(x), 4), round(float(y), 4)] for x, y in zip(comp["soft"]["attrs"], comp["theory"]["attrs"])],
+            "life": [round(float(v), 4) for v in comp["life"]["attrs"]],
         },
         "axes": [{"key": k, "pos": p, "neg": n, "posAttrs": pa, "negAttrs": na} for k, p, n, pa, na in AXES],
         "rubric": (ROOT / "data/rubric.md").read_text(),
+        "courses": [{k: c[k] for k in ("code", "number", "zh", "en", "desc", "r")} for c in courses],
     }
     js = ("// Generated by tools/build_data.py. Do not edit by hand.\n"
           "window.LogoLabData = " + json.dumps(data, ensure_ascii=False, separators=(",", ":")) + ";\n")

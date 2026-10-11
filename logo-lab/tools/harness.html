@@ -53,7 +53,8 @@
     for (const w of words) for (const n of courses) {
       const item = L.item(w);
       const course = L.course(n, item.code);
-      items.push({ word: course ? course.label : w, vec: L.vec(w) || new Float32Array(256), item, course });
+      const vec = course && course.vec ? course.vec : L.vec(w) || new Float32Array(256);   // rated courses: their own meaning
+      items.push({ word: course ? course.label + (course.title ? ' ' + course.title : '') : w, vec, item, course });
     }
     if (q.get('combine')) {
       const [a, b] = q.get('combine').split(/[+ ]/).filter(Boolean); // '+' arrives as a space

@@ -93,6 +93,11 @@ a { color: var(--accent); }
 .seg button:hover { background: var(--accent-soft); }
 .seg button[aria-pressed="true"] { background: var(--accent); color: var(--panel); }
 .seg .num { font-family: var(--mono); }
+.seg.catalog { display: flex; }
+.seg.catalog button { display: inline-flex; align-items: baseline; gap: 5px; border-top: 1px solid var(--line); margin-top: -1px; }
+.seg .ct { font-family: var(--sans); font-size: 12px; }
+.seg .ct.mine { text-decoration: underline dotted; text-underline-offset: 3px; }
+.live-form .course-no { flex: 0 0 5.2em; width: 5.2em; }
 .field { background: var(--paper); border: 1px solid var(--line); border-radius: 2px; padding: 6px 8px; font-size: 13px; line-height: 1.2; min-width: 0; }
 .field:hover { border-color: var(--muted); }
 input.field[type="number"] { width: 6.2em; font-family: var(--mono); }
@@ -243,6 +248,10 @@ select.field { max-width: 100%; }
 .sys-item .code { font: 10px/1 var(--mono); letter-spacing: .04em; color: var(--muted); }
 
 .courses { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; max-width: 680px; padding-top: 16px; }
+.courses.catalog { grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); max-width: none; }
+.courses.catalog .course-item { cursor: pointer; padding: 6px 2px 8px; border: 1px solid transparent; border-radius: var(--r); }
+.courses.catalog .course-item:hover { border-color: var(--line); }
+.courses.catalog .course-item.on { border-color: var(--accent); }
 .course-item { display: grid; justify-items: center; gap: 4px; min-width: 0; }
 .course-item .cap { font: 500 12px/1.2 var(--mono); letter-spacing: .04em; }
 .course-item .lvl { font-size: 11px; color: var(--muted); }
@@ -414,13 +423,20 @@ select.field { max-width: 100%; }
         <p class="tool-note" id="combo-near"></p>
       </div>
       <div class="tool" id="tool-live">
-        <p class="tool-label">输入任意词 <span class="latin">Live</span></p>
+        <p class="tool-label">输入任意词 · 加一门课 <span class="latin">Live</span></p>
         <form class="live-form" id="live-form" autocomplete="off">
           <input class="field" id="live-word" type="text" maxlength="16" placeholder="例如：围棋、黑洞、诗经" aria-label="输入任意词">
           <button class="btn" id="live-go" type="submit">打分</button>
           <button class="btn ghost" id="live-stop" type="button" hidden>停止</button>
         </form>
         <p class="tool-note" id="live-status" aria-live="polite"></p>
+        <form class="live-form" id="course-form" autocomplete="off" hidden>
+          <input class="field course-no" id="course-new-num" type="number" min="100" max="999" step="1" inputmode="numeric" placeholder="课号" aria-label="新课程的课号">
+          <input class="field" id="course-new-title" type="text" maxlength="24" placeholder="课名" aria-label="新课程的课名">
+          <button class="btn" id="course-new-go" type="submit">加课</button>
+          <button class="btn ghost" id="course-new-stop" type="button" hidden>停止</button>
+        </form>
+        <p class="tool-note" id="course-new-status" aria-live="polite" hidden></p>
       </div>
     </div>
   </section>
@@ -464,7 +480,7 @@ select.field { max-width: 100%; }
         <div id="detail-system"></div>
       </section>
       <section class="block" id="block-courses" aria-labelledby="h-courses">
-        <header class="block-head"><h3 id="h-courses">课程系列</h3><p>同一学科从 101 到 501：百位数（年级）改变可数的记号，纹章本身保持不变。</p></header>
+        <header class="block-head"><h3 id="h-courses">课程系列</h3><p id="courses-sub">同一学科从 101 到 501：百位数（年级）改变可数的记号，纹章本身保持不变。</p></header>
         <div class="courses" id="detail-courses"></div>
       </section>
       <section class="block" aria-labelledby="h-comp">

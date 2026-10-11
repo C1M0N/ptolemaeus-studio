@@ -1,0 +1,285 @@
+{
+ "note": "示例课程目录，用来演示课程如何在学科墨团上叠加出新形状。编号沿用常见规则：百位是年级。",
+ "courses": [
+  {
+   "code": "CS",
+   "number": 101,
+   "zh": "计算机科学导论",
+   "en": "Introduction to Computer Science",
+   "desc": "编程基础、算法思维、计算机如何工作的全景"
+  },
+  {
+   "code": "CS",
+   "number": 201,
+   "zh": "数据结构",
+   "en": "Data Structures",
+   "desc": "链表、树、图、哈希表与复杂度分析"
+  },
+  {
+   "code": "CS",
+   "number": 241,
+   "zh": "计算机组成",
+   "en": "Computer Organization",
+   "desc": "二进制、逻辑电路、处理器与存储器如何构成一台计算机"
+  },
+  {
+   "code": "CS",
+   "number": 311,
+   "zh": "系统工程",
+   "en": "Systems Engineering",
+   "desc": "大型软硬件系统的需求、架构、集成、可靠性与团队协作"
+  },
+  {
+   "code": "CS",
+   "number": 351,
+   "zh": "计算机网络",
+   "en": "Computer Networks",
+   "desc": "协议分层、路由，互联网如何把机器连成一体"
+  },
+  {
+   "code": "CS",
+   "number": 372,
+   "zh": "人机交互",
+   "en": "Human-Computer Interaction",
+   "desc": "以人为中心的界面设计、可用性研究与用户体验"
+  },
+  {
+   "code": "CS",
+   "number": 412,
+   "zh": "数据库系统",
+   "en": "Database Systems",
+   "desc": "数据建模、查询语言、事务与存储"
+  },
+  {
+   "code": "CS",
+   "number": 442,
+   "zh": "计算机图形学",
+   "en": "Computer Graphics",
+   "desc": "几何、光照、渲染与动画"
+  },
+  {
+   "code": "CS",
+   "number": 464,
+   "zh": "计算理论",
+   "en": "Theory of Computation",
+   "desc": "自动机、可计算性与复杂性，计算的极限"
+  },
+  {
+   "code": "CS",
+   "number": 471,
+   "zh": "信息安全",
+   "en": "Computer Security",
+   "desc": "密码学、攻击与防御、隐私与信任"
+  },
+  {
+   "code": "AI",
+   "number": 101,
+   "zh": "人工智能导论",
+   "en": "Introduction to Artificial Intelligence",
+   "desc": "搜索、推理、学习与智能体的概览"
+  },
+  {
+   "code": "AI",
+   "number": 230,
+   "zh": "概率推理",
+   "en": "Probabilistic Reasoning",
+   "desc": "贝叶斯网络，不确定性下的推断"
+  },
+  {
+   "code": "AI",
+   "number": 301,
+   "zh": "机器学习",
+   "en": "Machine Learning",
+   "desc": "从数据中学习模型：回归、分类、神经网络"
+  },
+  {
+   "code": "AI",
+   "number": 330,
+   "zh": "计算机视觉",
+   "en": "Computer Vision",
+   "desc": "让机器看懂图像与视频"
+  },
+  {
+   "code": "AI",
+   "number": 345,
+   "zh": "自然语言处理",
+   "en": "Natural Language Processing",
+   "desc": "让机器理解和生成人类语言"
+  },
+  {
+   "code": "AI",
+   "number": 360,
+   "zh": "机器人学",
+   "en": "Robotics",
+   "desc": "感知、运动规划与控制，让机器在物理世界中行动"
+  },
+  {
+   "code": "AI",
+   "number": 412,
+   "zh": "强化学习",
+   "en": "Reinforcement Learning",
+   "desc": "智能体通过试错与奖励学习决策"
+  },
+  {
+   "code": "AI",
+   "number": 440,
+   "zh": "认知建模",
+   "en": "Cognitive Modeling",
+   "desc": "用计算模型解释人类的思维、记忆与学习"
+  },
+  {
+   "code": "AI",
+   "number": 455,
+   "zh": "人工智能伦理",
+   "en": "AI Ethics",
+   "desc": "公平、责任、偏见，人工智能对社会的影响"
+  },
+  {
+   "code": "MATH",
+   "number": 101,
+   "zh": "微积分",
+   "en": "Calculus",
+   "desc": "极限、导数与积分，变化的数学"
+  },
+  {
+   "code": "MATH",
+   "number": 221,
+   "zh": "线性代数",
+   "en": "Linear Algebra",
+   "desc": "向量、矩阵与线性变换"
+  },
+  {
+   "code": "MATH",
+   "number": 241,
+   "zh": "离散数学",
+   "en": "Discrete Mathematics",
+   "desc": "逻辑、集合、组合与图论"
+  },
+  {
+   "code": "MATH",
+   "number": 310,
+   "zh": "微分方程",
+   "en": "Differential Equations",
+   "desc": "用方程描述运动、增长与振荡"
+  },
+  {
+   "code": "MATH",
+   "number": 331,
+   "zh": "抽象代数",
+   "en": "Abstract Algebra",
+   "desc": "群、环、域，对称的结构"
+  },
+  {
+   "code": "MATH",
+   "number": 351,
+   "zh": "实分析",
+   "en": "Real Analysis",
+   "desc": "实数、极限与连续性的严格基础"
+  },
+  {
+   "code": "MATH",
+   "number": 412,
+   "zh": "拓扑学",
+   "en": "Topology",
+   "desc": "形状在连续变形下不变的性质"
+  },
+  {
+   "code": "MATH",
+   "number": 425,
+   "zh": "数值分析",
+   "en": "Numerical Analysis",
+   "desc": "用计算机近似求解数学问题的算法与误差"
+  },
+  {
+   "code": "MATH",
+   "number": 461,
+   "zh": "数论",
+   "en": "Number Theory",
+   "desc": "整数、素数与古老的猜想"
+  },
+  {
+   "code": "MATH",
+   "number": 472,
+   "zh": "数学建模",
+   "en": "Mathematical Modeling",
+   "desc": "把人口、交通、疾病等现实问题翻译成数学模型"
+  },
+  {
+   "code": "STAT",
+   "number": 101,
+   "zh": "统计学导论",
+   "en": "Introduction to Statistics",
+   "desc": "数据描述、抽样、置信区间与假设检验"
+  },
+  {
+   "code": "STAT",
+   "number": 210,
+   "zh": "概率论",
+   "en": "Probability",
+   "desc": "随机事件、分布与极限定理"
+  },
+  {
+   "code": "STAT",
+   "number": 301,
+   "zh": "回归分析",
+   "en": "Regression Analysis",
+   "desc": "用模型刻画变量之间的关系"
+  },
+  {
+   "code": "STAT",
+   "number": 330,
+   "zh": "实验设计",
+   "en": "Design of Experiments",
+   "desc": "随机化、对照与析因设计"
+  },
+  {
+   "code": "STAT",
+   "number": 350,
+   "zh": "贝叶斯统计",
+   "en": "Bayesian Statistics",
+   "desc": "先验、后验，用概率表达信念"
+  },
+  {
+   "code": "STAT",
+   "number": 410,
+   "zh": "时间序列",
+   "en": "Time Series",
+   "desc": "趋势、周期与预测"
+  },
+  {
+   "code": "STAT",
+   "number": 430,
+   "zh": "生物统计",
+   "en": "Biostatistics",
+   "desc": "临床试验、流行病学与生存分析"
+  },
+  {
+   "code": "STAT",
+   "number": 455,
+   "zh": "统计学习",
+   "en": "Statistical Learning",
+   "desc": "预测模型、正则化与模型选择"
+  },
+  {
+   "code": "STAT",
+   "number": 470,
+   "zh": "抽样调查",
+   "en": "Survey Sampling",
+   "desc": "问卷、抽样设计与社会调查"
+  },
+  {
+   "code": "MATH",
+   "number": 414,
+   "zh": "概率论",
+   "en": "Introduction to Probability Theory",
+   "desc": "随机变量、概率分布、期望与方差、大数定律与中心极限定理（数学系与统计系交叉开设的同一门课）"
+  },
+  {
+   "code": "STAT",
+   "number": 414,
+   "zh": "概率论",
+   "en": "Introduction to Probability Theory",
+   "desc": "随机变量、概率分布、期望与方差、大数定律与中心极限定理（数学系与统计系交叉开设的同一门课）"
+  }
+ ]
+}

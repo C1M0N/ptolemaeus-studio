@@ -83,6 +83,15 @@
   const isCustom = (zh) => !vocab.has(zh) && !!findWord(zh);
   const itemOf = (zh) => (vocab.has(zh) ? L.item(zh) : { kind: 'word', zh, en: '', code: '', f: -1 });
 
+  // Courses added in the page and scored live by Claude, kept per viewer: [{code, number, zh, r}]
+  let customCourses = (() => {
+    const list = store.get('courses', []);
+    if (!Array.isArray(list)) return [];
+    return list.filter((c) => c && typeof c.code === 'string' && Number.isInteger(c.number) && typeof c.zh === 'string' && c.r && typeof c.r === 'object').slice(-60);
+  })();
+  customCourses.forEach((c) => L.addCourse(c));
+  const saveCourses = () => store.set('courses', customCourses);
+
   const vecCache = new Map();
   function vecOf(zh) {
     if (!vecCache.has(zh)) {
@@ -130,7 +139,11 @@
       return { kind: 'combo', word: zh, vec: L.combine(vecOf(a), vecOf(b), op), item: { kind: 'combo', zh, en, code: '', f: -1, parts: [a, b] }, course: null, a, b, op };
     }
     const s = subjOf(state.word);
-    if (s.item.kind === 'discipline' && state.courseN) s.course = L.course(state.courseN, s.item.code);
+    if (s.item.kind === 'discipline' && state.courseN) {
+      s.course = L.course(state.courseN, s.item.code);
+      // a rated course is its own subject: every view draws the course's meaning, not the department's
+      if (s.course && s.course.vec) s.vec = s.course.vec;
+    }
     return s;
   }
   let S = subject();
@@ -264,15 +277,35 @@
     changed();
   }
 
-  function buildCourse() {
+  // Presets: the discipline's catalog when it has one (number + title), else a few sample numbers.
+  let presetKey = '';
+  function renderCoursePresets(force) {
+    const code = S.kind === 'discipline' ? S.item.code : '';
+    const list = code ? L.courses(code) : [];
+    const key = list.length ? code + ':' + list.map((c) => c.number + (c.custom ? '*' : '')).join(',') : 'default';
+    if (key === presetKey && !force) return;
+    presetKey = key;
     const seg = $('course-presets');
-    for (const n of PRESETS) {
+    seg.textContent = '';
+    seg.classList.toggle('catalog', list.length > 0);
+    const entries = list.length ? [{ n: 0 }].concat(list.map((c) => ({ n: c.number, title: c.zh, mine: !!c.custom }))) : PRESETS.map((n) => ({ n }));
+    for (const e of entries) {
       seg.append(h('button', {
-        type: 'button', id: 'course-' + (n || 'none'), class: n ? 'num' : null, 'data-n': n, 'aria-pressed': 'false',
-        text: n ? String(n) : '无',
-        onclick: () => { state.courseN = n; $('course-num').value = n ? String(n) : ''; changed(); },
-      }));
+        type: 'button', id: 'course-' + (e.n || 'none'), class: e.n ? 'num' : null, 'data-n': e.n, 'aria-pressed': 'false',
+        title: e.title ? `${code} ${e.n} ${e.title}${e.mine ? '（你加的课）' : ''}` : null,
+      }, e.n ? [h('span', { text: String(e.n) }), e.title ? h('span', { class: 'ct' + (e.mine ? ' mine' : ''), text: e.title }) : null] : '无'));
     }
+  }
+
+  function buildCourse() {
+    $('course-presets').addEventListener('click', (e) => {
+      const b = e.target.closest('button[data-n]');
+      if (!b) return;
+      const n = +b.dataset.n;
+      state.courseN = n;
+      $('course-num').value = n ? String(n) : '';
+      changed();
+    });
     let t = 0;
     $('course-num').addEventListener('input', (e) => {
       clearTimeout(t);
@@ -340,6 +373,7 @@
     if (s.kind === 'discipline') tags.append(h('span', { class: 'tag', text: s.course ? s.course.label : s.item.code }));
     else if (s.kind === 'combo') tags.append(h('span', { class: 'tag seal', text: '交叉' }));
     else tags.append(h('span', { class: 'tag soft', text: isCustom(s.word) ? '你的词' : '对照词' }));
+    if (s.course && s.course.title) tags.append(h('span', { class: 'tag', text: s.course.title }));
     if (s.course) tags.append(h('span', { class: 'tag soft', text: levelText(s.course.level) }));
 
     const top = L.top(s.vec, 5);
@@ -365,13 +399,15 @@
     }
 
     // course
+    renderCoursePresets();
     for (const b of $('course-presets').children) b.setAttribute('aria-pressed', String(+b.dataset.n === state.courseN));
     const num = $('course-num');
     if (document.activeElement !== num) num.value = state.courseN ? String(state.courseN) : '';
     const cn = $('course-note');
     cn.textContent = '';
     if (S.kind !== 'discipline') cn.append('课程编号只作用于 48 个学科。');
-    else if (S.course) cn.append('显示为 ', h('b', { class: 'mono', text: S.course.label }), ` · ${levelText(S.course.level)}，尾数 ${String(S.course.minor).padStart(2, '0')}`);
+    else if (S.course && S.course.title) cn.append('显示为 ', h('b', { class: 'mono', text: S.course.label }), ' ', h('b', { text: S.course.title }), ` · ${levelText(S.course.level)}${S.course.vec ? '' : '（还没有打分）'}`);
+    else if (S.course) cn.append('显示为 ', h('b', { class: 'mono', text: S.course.label }), ` · ${levelText(S.course.level)}，尾数 ${String(S.course.minor).padStart(2, '0')}${L.courses(S.item.code).length ? '。目录里没有这门课，只按年级显示' : ''}`);
     else cn.append('不加课程记号，显示学科本身。');
 
     // alchemy
@@ -430,6 +466,7 @@
       else if (sampleState === 'ready') note = '词表里没有的词，由 Claude 按同一套规则现场打分。';
     }
     $('live-status').textContent = note;
+    updateCourseForm();
   }
 
   async function onLiveSubmit(e) {
@@ -472,7 +509,61 @@
     }
   }
 
+  // Add a course to the current discipline: Claude scores the title with the course rubric.
+  let courseCtl = null;
+  let courseMsg = '';
+  function updateCourseForm() {
+    const form = $('course-form');
+    const disc = S.kind === 'discipline';
+    form.hidden = !disc;
+    $('course-new-status').hidden = !disc;
+    if (!disc) return;
+    const ready = sampleState === 'ready';
+    $('course-new-go').disabled = !!courseCtl || !ready;
+    $('course-new-stop').hidden = !courseCtl;
+    $('course-new-title').placeholder = `给 ${S.item.code} 加一门课，例如：分布式系统`;
+    $('course-new-status').textContent = courseMsg || (ready ? `输入课号和课名，Claude 按这门课本身的内容打分，叠在「${S.word}」上。` : sampleState === 'denied' ? '你没有允许本页调用 Claude。' : '加课需要在 claude.ai 中打开本页。');
+  }
+  async function onCourseSubmit(e) {
+    e.preventDefault();
+    if (S.kind !== 'discipline' || sampleState !== 'ready' || courseCtl) return;
+    const n = clampCourse($('course-new-num').value);
+    const title = $('course-new-title').value.trim();
+    if (!n || n < 100 || !title) { courseMsg = '课号要在 100–999 之间，课名不能为空。'; updateCourseForm(); return; }
+    const code = S.item.code, dept = S.word;
+    const ctl = new AbortController();
+    courseCtl = ctl;
+    courseMsg = `Claude 正在给「${code} ${n} ${title}」打分…`;
+    updateCourseForm();
+    try {
+      const json = await sample.json(L.coursePrompt(dept, code, n, title), { signal: ctl.signal, modelTier: 'default' });
+      const r = L.parseRating(json);
+      const entry = { code, number: n, zh: title, r };
+      customCourses = customCourses.filter((c) => !(c.code === code && c.number === n)).concat([entry]).slice(-60);
+      saveCourses();
+      L.addCourse(entry);
+      $('course-new-num').value = '';
+      $('course-new-title').value = '';
+      courseMsg = `已加入 ${code} ${n} ${title}，${Object.keys(r).length} 个非零属性。`;
+      courseCtl = null;
+      state.courseN = n;
+      changed();
+    } catch (err) {
+      const c = err && err.code;
+      if (c === 'cancelled') courseMsg = '';
+      else if (c === 'not_granted') { sampleState = 'denied'; courseMsg = '你没有允许本页调用 Claude。'; }
+      else if (c === 'rate_limited') courseMsg = '请求太频繁，稍后再试。';
+      else courseMsg = '打分没有成功，再试一次。';
+    } finally {
+      if (courseCtl === ctl) courseCtl = null;
+      updateCourseForm();
+    }
+  }
+
   function buildLive() {
+    $('course-form').addEventListener('submit', onCourseSubmit);
+    $('course-new-stop').addEventListener('click', () => { if (courseCtl) courseCtl.abort(); });
+    for (const id of ['course-new-num', 'course-new-title']) $(id).addEventListener('input', () => { courseMsg = ''; updateCourseForm(); });
     $('live-form').addEventListener('submit', onLiveSubmit);
     $('live-word').addEventListener('input', () => { liveMsg = ''; updateLive(); });
     $('live-stop').addEventListener('click', () => { if (liveCtl) liveCtl.abort(); });
@@ -700,14 +791,26 @@
     if (block.hidden) return;
     const box = $('detail-courses');
     box.textContent = '';
-    const size = Math.round(Math.max(48, Math.min(96, ((box.clientWidth || 600) - 48) / 5 - 6)));
+    const catalog = L.courses(S.item.code);
+    box.classList.toggle('catalog', catalog.length > 0);
+    $('courses-sub').textContent = catalog.length
+      ? `${S.item.code} 的 ${catalog.length} 门课。打过分的课只按自己的语义向量生成，不以学科为底，所以交叉开设的同一门课长得一样；点一门课切换。只有用到课程语义的思路（墨迹）会长出不同形状，其他思路只按年级变化。`
+      : '同一学科从 101 到 501：百位数（年级）改变可数的记号，纹章本身保持不变。';
+    const nums = catalog.length ? catalog.map((c) => c.number) : [101, 201, 301, 401, 501];
+    const size = catalog.length ? 104 : Math.round(Math.max(48, Math.min(96, ((box.clientWidth || 600) - 48) / 5 - 6)));
     const opts = optsFor(r);
-    for (const n of [101, 201, 301, 401, 501]) {
+    const dept = subjOf(S.word);
+    for (const n of nums) {
       const course = L.course(n, S.item.code);
-      box.append(h('figure', { class: 'course-item', style: 'margin:0' }, [
-        emblem(r, Object.assign({}, S, { course }), size, 'card', { opts }),
-        h('figcaption', { style: 'display:grid;justify-items:center;gap:2px' }, [h('span', { class: 'cap', text: course.label }), h('span', { class: 'lvl', text: levelText(course.level) })]),
-      ]));
+      const fig = h('figure', { class: 'course-item' + (n === state.courseN ? ' on' : ''), style: 'margin:0', title: course.title ? `${course.label} ${course.title}` : course.label }, [
+        emblem(r, Object.assign({}, dept, { course, vec: course.vec || dept.vec }), size, 'card', { opts }),
+        h('figcaption', { style: 'display:grid;justify-items:center;gap:2px' }, [
+          h('span', { class: 'cap', text: course.label }),
+          h('span', { class: 'lvl', text: course.title || levelText(course.level) }),
+        ]),
+      ]);
+      if (catalog.length) fig.addEventListener('click', () => { state.courseN = n; changed(); });
+      box.append(fig);
     }
   }
 
@@ -715,7 +818,7 @@
     const nz = S.vec.reduce((n, v) => n + (v > 0 ? 1 : 0), 0);
     const top = L.top(S.vec, 12);
     $('comp-sub').textContent = nz
-      ? `「${S.word}」有 ${nz} 个非零属性，下面是最强的 ${top.length} 个。地址是属性在 256 维里的字节位置：高位是领域，低位是领域内的序号。`
+      ? `「${S.course && S.course.vec ? S.course.label + ' ' + S.course.title : S.word}」有 ${nz} 个非零属性，下面是最强的 ${top.length} 个。地址是属性在 256 维里的字节位置：高位是领域，低位是领域内的序号。`
       : `「${S.word}」没有非零属性。`;
     const list = $('comp-top');
     list.textContent = '';

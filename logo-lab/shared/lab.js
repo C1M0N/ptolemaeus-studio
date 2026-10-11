@@ -20,11 +20,41 @@
     return { kind: w.kind, zh: w.zh, en: w.en, code: w.code || '', f: w.f == null ? -1 : w.f };
   }
 
-  // Course number -> {number, level (hundreds digit, 1-9), minor (last two digits, 0-99), label}.
+  // ---- course catalog: data.courses (rated offline) plus courses added in the page (scored live) ----
+  const customCourses = [];
+  function catalogEntry(code, n) {
+    return customCourses.find((c) => c.code === code && c.number === n)
+      || (data.courses || []).find((c) => c.code === code && c.number === n) || null;
+  }
+  // All catalog courses of a course-code prefix, by number: [{code, number, zh, en, desc, r, custom?}]
+  function courses(code) {
+    const seen = new Set();
+    return customCourses.concat(data.courses || [])
+      .filter((c) => c.code === code && !seen.has(c.number) && seen.add(c.number))
+      .sort((a, b) => a.number - b.number);
+  }
+  // Add (or replace) a course scored in the page.
+  function addCourse(c) {
+    const i = customCourses.findIndex((x) => x.code === c.code && x.number === c.number);
+    const entry = Object.assign({ custom: true }, c);
+    if (i >= 0) customCourses[i] = entry; else customCourses.push(entry);
+    return entry;
+  }
+
+  // Course number -> {number, level (hundreds digit, 1-9), minor (last two digits, 0-99), label}, plus
+  // {title, en, desc, vec} when the catalog knows this course and it has been rated.
   function course(number, code = '') {
     const n = Math.max(0, Math.min(999, Math.round(+number) || 0));
     if (!n) return null;
-    return { number: n, level: Math.floor(n / 100), minor: n % 100, label: (code ? code + ' ' : '') + n };
+    const out = { number: n, level: Math.floor(n / 100), minor: n % 100, label: (code ? code + ' ' : '') + n };
+    const c = code ? catalogEntry(code, n) : null;
+    if (c) {
+      out.title = c.zh;
+      out.en = c.en || '';
+      out.desc = c.desc || '';
+      if (c.r && Object.keys(c.r).length) out.vec = toVec(c.r);
+    }
+    return out;
   }
 
   // Float32Array(256) in [0, 1] for a vocabulary word, or null.
@@ -113,7 +143,11 @@
       ring += v[i] * (Math.max(Math.abs(Math.floor(c / 16) - 7.5), Math.abs((c % 16) - 7.5)) - 0.5);
     }
     ring = sw ? ring / sw : 0;
-    return { share, entropy: H, active, gyration, clusters, ring, total };
+    // where the meaning sits on the compass (x: hard -1 .. soft +1, y: applied -1 .. theory +1) and how alive it is
+    const cmp = data.layouts.compass, life = data.layouts.life;
+    let cx = 0, cy = 0, lf = 0;
+    if (cmp && sw) for (let i = 0; i < N; i++) if (v[i] > 0) { cx += v[i] * cmp[i][0]; cy += v[i] * cmp[i][1]; lf += v[i] * life[i]; }
+    return { share, entropy: H, active, gyration, clusters, ring, total, cx: sw ? cx / sw : 0, cy: sw ? cy / sw : 0, life: sw ? lf / sw : 0 };
   }
 
   // Reference distribution over the disciplines, so `spread` reads as "how diffuse compared with other fields".
@@ -131,7 +165,8 @@
     }
     const composite = (r) => ['entropy', 'active', 'gyration', 'clusters'].reduce((a, k) => a + (r[k] - stats[k].m) / stats[k].sd, 0) / 4;
     const sorted = rows.map(composite).sort((a, b) => a - b);
-    ref = { stats, composite, sorted };
+    const lifeSorted = rows.map((r) => r.life).sort((a, b) => a - b);
+    ref = { stats, composite, sorted, lifeSorted };
     return ref;
   }
   // position of x within a sorted list, 0..1 (linear between neighbours)
@@ -161,6 +196,8 @@
       clusters: r.clusters,
       rim: Math.max(0, Math.min(1, 0.5 + z('ring') / 4)),
       dirs: Array.from(r.share, (share, d) => ({ d, angle: domainAngle[d], share })),
+      compass: { x: r.cx, y: r.cy },                     // weighted mean position on the compass map
+      life: r.total ? percentile(R.lifeSorted, r.life) : 0.5,   // 0 crystalline .. 1 organic, ranked against the disciplines
       empty: !r.total,
     };
   }
@@ -243,6 +280,13 @@
     renderers.sort((a, b) => (a.order || 99) - (b.order || 99));
   }
 
+  // Prompt used for live scoring of a course: the same rubric, rating the course's own subject matter.
+  function coursePrompt(dept, code, number, title) {
+    return ratingPrompt(`${code} ${number} ${title}`) + `
+
+补充说明：这是「${dept}」（${code}）开设的一门课程，课号 ${number}，课名「${title}」。请按这门课本身教什么、怎么教、给人什么感觉来打分（研究对象、方法、工具、意象），而不是给整个学科打分；让它和同一学科的其他课程（理论课、系统课、应用课、面向人的课）明显区分开。JSON 里的 word 字段写课名。`;
+  }
+
   // Prompt used for live scoring of a new word (same rubric as the offline data).
   function ratingPrompt(word) {
     const list = data.attrs.map((a) => `${a.i} ${a.zh} ${a.en}`).join('\n');
@@ -273,8 +317,8 @@ ${list}
 
   window.LogoLab = {
     data, N, renderers, register,
-    vec, toVec, item, course, top, anyOf, axis, domainSum, features, domainAngle, combine, cosine, nearest,
+    vec, toVec, item, course, courses, addCourse, top, anyOf, axis, domainSum, features, domainAngle, combine, cosine, nearest,
     hash, rng, svg, canvas, hex,
-    ratingPrompt, parseRating,
+    ratingPrompt, coursePrompt, parseRating,
   };
 })();
