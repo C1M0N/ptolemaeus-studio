@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Renderer harness</title>
+<style>
+  :root { --paper: #EEF1F4; --panel: #F8F9FB; --ink: #141922; --muted: #5A6474; --line: #D3D9E1; --accent: #2F44B0; --seal: #C8402F; }
+  :root[data-theme="dark"] { --paper: #0F1218; --panel: #161A22; --ink: #E8EBF0; --muted: #97A0AE; --line: #2A303B; --accent: #93A4FF; --seal: #F07A64; color-scheme: dark; }
+  body { margin: 0; padding: 16px; background: var(--paper); color: var(--ink); font: 13px system-ui, sans-serif; }
+  .sheet { display: grid; grid-template-columns: repeat(auto-fill, minmax(var(--cell), 1fr)); gap: 12px; }
+  figure { margin: 0; background: var(--panel); border: 1px solid var(--line); padding: 8px; display: grid; justify-items: center; gap: 4px; }
+  figcaption { color: var(--muted); }
+  #err { color: var(--seal); white-space: pre-wrap; }
+</style>
+</head>
+<body>
+<div id="err"></div>
+<div class="sheet" id="sheet"></div>
+<script src="../shared/semantics.js"></script>
+<script src="../shared/lab.js"></script>
+<script>
+  // Usage: harness.html?r=matrix&words=数学,猴子&course=101,241&size=200&mode=card&theme=dark&opt.layout=similar&combine=数学+音乐
+  const q = new URLSearchParams(location.search);
+  if (q.get('theme') === 'dark') document.documentElement.dataset.theme = 'dark';
+  const id = q.get('r');
+  const s = document.createElement('script');
+  s.src = '../renderers/' + id + '.js';
+  s.onload = run;
+  s.onerror = () => { document.getElementById('err').textContent = 'cannot load renderer ' + id; };
+  document.body.appendChild(s);
+
+  function run() {
+    const L = window.LogoLab;
+    const r = L.renderers.find((x) => x.id === id);
+    if (!r) { document.getElementById('err').textContent = 'renderer did not register: ' + id; return; }
+    const size = +(q.get('size') || 200);
+    const mode = q.get('mode') || 'card';
+    document.documentElement.style.setProperty('--cell', size + 16 + 'px');
+    const opts = {};
+    for (const c of r.controls) opts[c.id] = c.value;
+    for (const [k, v] of q) if (k.startsWith('opt.')) {
+      const c = r.controls.find((x) => x.id === k.slice(4));
+      opts[k.slice(4)] = c && c.type === 'range' ? +v : c && c.type === 'toggle' ? v === '1' || v === 'true' : v;
+    }
+    const cs = getComputedStyle(document.documentElement);
+    const colors = {};
+    for (const k of ['ink', 'paper', 'panel', 'muted', 'line', 'accent', 'seal']) colors[k] = cs.getPropertyValue('--' + k).trim();
+    const items = [];
+    const words = q.get('words') ? q.get('words').split(',')
+      : L.data.words.filter((w) => q.get('all') || w.kind === 'discipline').map((w) => w.zh);
+    const courses = q.get('course') ? q.get('course').split(',').map(Number) : [0];
+    for (const w of words) for (const n of courses) {
+      const item = L.item(w);
+      const course = L.course(n, item.code);
+      items.push({ word: course ? course.label : w, vec: L.vec(w) || new Float32Array(256), item, course });
+    }
+    if (q.get('combine')) {
+      const [a, b] = q.get('combine').split('+');
+      items.push({ word: a + ' + ' + b, vec: L.combine(L.vec(a), L.vec(b), q.get('cmode') || 'add'),
+        item: { kind: 'combo', zh: a + ' + ' + b, en: '', code: '', f: -1 }, course: null });
+    }
+    if (q.get('empty')) items.push({ word: '(空)', vec: new Float32Array(256), item: { kind: 'word', zh: '', en: '', code: '', f: -1 }, course: null });
+    const sheet = document.getElementById('sheet');
+    for (const it of items) {
+      const fig = document.createElement('figure');
+      try {
+        const el = r.render({ vec: it.vec, word: it.word, item: it.item, course: it.course, size, mode, opts, colors, lab: L, hover: () => {} });
+        fig.appendChild(el);
+      } catch (e) {
+        document.getElementById('err').textContent += it.word + ': ' + e.stack + '\n';
+      }
+      const cap = document.createElement('figcaption');
+      cap.textContent = it.word;
+      fig.appendChild(cap);
+      sheet.appendChild(fig);
+    }
+    document.body.dataset.ready = '1';
+  }
+</script>
+</body>
+</html>
