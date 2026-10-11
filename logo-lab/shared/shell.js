@@ -126,7 +126,8 @@
       const ia = itemOf(a), ib = itemOf(b);
       const zh = a + ' × ' + b;
       const en = enOf(ia) && enOf(ib) ? enOf(ia) + ' × ' + enOf(ib) : '';
-      return { kind: 'combo', word: zh, vec: L.combine(vecOf(a), vecOf(b), op), item: { kind: 'combo', zh, en, code: '', f: -1 }, course: null, a, b, op };
+      // parts lets a renderer marshal the two identities itself (e.g. heraldic impalement)
+      return { kind: 'combo', word: zh, vec: L.combine(vecOf(a), vecOf(b), op), item: { kind: 'combo', zh, en, code: '', f: -1, parts: [a, b] }, course: null, a, b, op };
     }
     const s = subjOf(state.word);
     if (s.item.kind === 'discipline' && state.courseN) s.course = L.course(state.courseN, s.item.code);
@@ -505,16 +506,51 @@
     return Math.round(Math.max(140, Math.min(232, cardW - 60)));
   }
 
+  const featured = L.renderers.find((r) => r.featured) || null;
+  const studies = L.renderers.filter((r) => r !== featured);
+
+  // The featured proposal: one large emblem, its pitch, and the whole roll of 48 at a glance.
+  function renderFeature(mark) {
+    const box = $('gallery-featured');
+    box.textContent = '';
+    if (!featured) return;
+    const r = featured;
+    const opts = optsFor(r);
+    const wide = window.innerWidth > 760;
+    const size = wide ? 300 : Math.min(280, window.innerWidth - 90);
+    const stage = h('div', { class: 'feature-stage crop' }, emblem(r, S, size, 'card', { opts }));
+    if (mark) stage.append(h('span', { class: 'stage-mark' + (S.kind === 'combo' ? ' seal' : ''), text: mark }));
+    const lede = h('div');
+    lede.innerHTML = r.about || '';
+    const first = lede.querySelector('p');
+    box.append(h('a', { class: 'feature', href: '#' + r.id, id: 'card-' + r.id }, [
+      stage,
+      h('div', { class: 'feature-body' }, [
+        h('p', { class: 'feature-kicker' }, [h('b', { text: '提案' }), h('span', { text: r.en || '' })]),
+        h('h3', { class: 'feature-name', text: r.name }),
+        h('p', { class: 'feature-tag', text: r.tagline || '' }),
+        first ? h('p', { class: 'feature-lede', text: first.textContent }) : null,
+        h('div', { class: 'feature-roll', 'aria-hidden': 'true' },
+          disciplines.map((w) => { const sl = emblem(r, subjOf(w.zh), 40, 'card', { opts }); sl.title = w.zh + ' ' + (w.code || ''); return sl; })),
+        h('span', { class: 'feature-go', text: '看完整体系与语法 →' }),
+      ]),
+    ]));
+  }
+
   function renderGallery() {
     const grid = $('gallery-grid');
-    const n = L.renderers.length;
-    $('view-gallery').querySelector('h2').textContent = `${CN_NUM[n] || n}种生成思路`;
+    const n = studies.length;
+    $('gallery-title').textContent = featured ? `${CN_NUM[n] || n}个原理习作` : `${CN_NUM[n] || n}种生成思路`;
+    $('gallery-sub').textContent = featured
+      ? '每一种只复现一个传统的机制：矩阵、二进制卦、符印、感知形态、汉字部件、盾徽、家纹、字母。上面的提案把它们合在一起。每张卡片画的是当前学科，底下一排是同门类的其他学科。'
+      : '每张卡片用同一个语义向量画出当前的词；底下一排小图是同一体系里的其他学科。点卡片看细节。';
+    const mark = S.kind === 'combo' ? '交叉 · ' + opLabel(S.op) : S.course ? S.course.label : S.item.code;
+    renderFeature(mark);
     const size = cardSize();
     const kin = kinFor(S).map((zh) => subjOf(zh));
-    const mark = S.kind === 'combo' ? '交叉 · ' + opLabel(S.op) : S.course ? S.course.label : S.item.code;
     grid.textContent = '';
-    if (!n) grid.append(h('div', { class: 'empty-note', text: '还没有注册任何渲染器（renderers/*.js）。' }));
-    for (const r of L.renderers) {
+    if (!L.renderers.length) grid.append(h('div', { class: 'empty-note', text: '还没有注册任何渲染器（renderers/*.js）。' }));
+    for (const r of studies) {
       const opts = optsFor(r);
       const stage = h('div', { class: 'card-stage crop' }, emblem(r, S, size, 'card', { opts }));
       if (mark) stage.append(h('span', { class: 'stage-mark' + (S.kind === 'combo' ? ' seal' : ''), text: mark }));
@@ -830,6 +866,7 @@
     let t = location.hash.replace(/^#/, '');
     try { t = decodeURIComponent(t); } catch (e) { /* keep raw */ }
     if (t === 'attrs') return { view: 'attrs', rid: null };
+    if (t === 'principles') return { view: 'principles', rid: null };
     if (L.renderers.some((r) => r.id === t)) return { view: 'detail', rid: t };
     if (single) return { view: 'detail', rid: single.id };
     return { view: 'gallery', rid: null };
@@ -841,8 +878,10 @@
     $('view-gallery').hidden = state.view !== 'gallery';
     $('view-detail').hidden = state.view !== 'detail';
     $('view-attrs').hidden = state.view !== 'attrs';
-    $('console').hidden = state.view === 'attrs';
-    const navG = $('nav-gallery'), navA = $('nav-attrs');
+    $('view-principles').hidden = state.view !== 'principles';
+    $('console').hidden = state.view === 'attrs' || state.view === 'principles';
+    const navG = $('nav-gallery'), navA = $('nav-attrs'), navP = $('nav-principles');
+    if (state.view === 'principles') navP.setAttribute('aria-current', 'page'); else navP.removeAttribute('aria-current');
     navG.hidden = !!single;
     if (single) navG.removeAttribute('aria-current');
     else if (state.view === 'gallery') navG.setAttribute('aria-current', 'page');
@@ -871,7 +910,7 @@
     updateConsole();
     if (state.view === 'gallery') renderGallery();
     else if (state.view === 'detail') renderDetail();
-    else updateAttrs();
+    else if (state.view === 'attrs') updateAttrs();
   }
 
   function onTheme() { if (syncColors()) refresh(); }
@@ -892,6 +931,16 @@
 
   /* ------------------------------------------------------------------ boot */
 
+  {
+    const ms = $('mast-sub');
+    ms.textContent = '';
+    const parts = [['48', ' 个学科']];
+    if (single) parts.push(['', single.name]);
+    else if (featured) parts.push(['1', ' 个提案'], [String(studies.length), ' 个原理习作']);
+    else parts.push([String(L.renderers.length), ' 种生成思路']);
+    parts.forEach(([b, t], i) => { if (i) ms.append(' · '); if (b) ms.append(h('b', { text: b })); ms.append(t); });
+    ms.append(' · 同一组语义向量');
+  }
   buildRoll();
   buildCourse();
   buildCombo();

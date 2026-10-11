@@ -15,9 +15,22 @@ ROOT = Path(__file__).resolve().parent.parent
 TEMPLATE = (ROOT / "tools" / "page_template.html").read_text(encoding="utf-8")
 
 
+def principles_html():
+    """PRINCIPLES.md as HTML for the 原理 view (tables wrapped so they scroll on phones)."""
+    text = (ROOT / "PRINCIPLES.md").read_text(encoding="utf-8")
+    try:
+        import markdown
+    except ImportError:
+        import html
+        return "<pre>" + html.escape(text) + "</pre>"
+    out = markdown.markdown(text, extensions=["tables"])
+    return out.replace("<table>", '<div class="table-wrap"><table>').replace("</table>", "</table></div>")
+
+
 def page(ids, root):
     tags = "\n".join(f'<script src="{root}renderers/{i}.js"></script>' for i in ids)
-    return TEMPLATE.replace("{{ROOT}}", root).replace("{{RENDERERS}}", tags)
+    return (TEMPLATE.replace("{{ROOT}}", root).replace("{{RENDERERS}}", tags)
+            .replace("{{PRINCIPLES}}", principles_html()))
 
 
 def body_only(html):
